@@ -1,26 +1,31 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.*;
+import com.example.demo.entity.User;
 import com.example.demo.model.License;
-import com.example.demo.model.User;
 import com.example.demo.service.LicenseService;
+import com.example.demo.signature.SigningService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Base64;
+
 @RestController
 @RequestMapping("/api/licenses")
 public class LicenseController {
 
     private final LicenseService licenseService;
+    private final SigningService signingService;
 
-    public LicenseController(LicenseService licenseService) {
+    public LicenseController(LicenseService licenseService,
+                             SigningService signingService) {
         this.licenseService = licenseService;
+        this.signingService = signingService;
     }
 
-    // Только ADMIN может создавать лицензии
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<License> createLicense(
@@ -49,5 +54,11 @@ public class LicenseController {
             @RequestBody CheckLicenseRequest request,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(licenseService.checkLicense(request, user.getId()));
+    }
+
+    // Публичный ключ для проверки подписи на стороне клиента
+    @GetMapping("/public-key")
+    public ResponseEntity<String> getPublicKey() {
+        return ResponseEntity.ok(signingService.getPublicKeyBase64());
     }
 }
