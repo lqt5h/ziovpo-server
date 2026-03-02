@@ -1,20 +1,17 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.*;
+import com.example.demo.entity.User;
 import com.example.demo.model.*;
 import com.example.demo.repository.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.example.demo.signature.SigningService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.UUID;
 
 @Service
@@ -27,8 +24,8 @@ public class LicenseService {
     private final DeviceLicenseRepository deviceLicenseRepository;
     private final LicenseHistoryRepository licenseHistoryRepository;
     private final UserRepository userRepository;
+    private final SigningService signingService;
 
-    // Время жизни тикета — 1 час
     private static final long TICKET_LIFETIME_SECONDS = 3600;
 
     public LicenseService(LicenseRepository licenseRepository,
@@ -37,7 +34,8 @@ public class LicenseService {
                           DeviceRepository deviceRepository,
                           DeviceLicenseRepository deviceLicenseRepository,
                           LicenseHistoryRepository licenseHistoryRepository,
-                          UserRepository userRepository) {
+                          UserRepository userRepository,
+                          SigningService signingService) {
         this.licenseRepository = licenseRepository;
         this.productRepository = productRepository;
         this.licenseTypeRepository = licenseTypeRepository;
@@ -45,6 +43,7 @@ public class LicenseService {
         this.deviceLicenseRepository = deviceLicenseRepository;
         this.licenseHistoryRepository = licenseHistoryRepository;
         this.userRepository = userRepository;
+        this.signingService = signingService;
     }
 
     // ===== 2.1 Создание лицензии =====
@@ -68,7 +67,7 @@ public class LicenseService {
         license.setProduct(product);
         license.setType(type);
         license.setOwner(owner);
-        license.setUser(null); // активируется позже
+        license.setUser(null);
         license.setDeviceCount(request.getDeviceCount());
         license.setDescription(request.getDescription());
         license.setBlocked(false);
@@ -86,7 +85,6 @@ public class LicenseService {
         License license = licenseRepository.findByCode(request.getActivationKey())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "license not found"));
 
-        // Проверка: лицензия не принадлежит другому пользователю
         if (license.getUser() != null && !license.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "license owned by another user");
         }
@@ -94,7 +92,6 @@ public class LicenseService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user not found"));
 
-        // Найти или создать устройство
         Device device = deviceRepository.findByMacAddress(request.getDeviceMac())
                 .orElseGet(() -> {
                     Device d = new Device();
@@ -111,11 +108,9 @@ public class LicenseService {
             license.setFirstActivationDate(LocalDate.now());
             license.setEndingDate(LocalDate.now().plusDays(license.getType().getDefaultDurationInDays()));
             licenseRepository.save(license);
-
             createDeviceLicense(license, device);
             saveHistory(license, user, "ACTIVATED", "First activation");
         } else {
-            // Повторная активация — проверяем лимит устройств
             boolean alreadyActivated = deviceLicenseRepository
                     .existsByLicenseAndDevice_MacAddress(license, request.getDeviceMac());
 
@@ -142,7 +137,6 @@ public class LicenseService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user not found"));
 
-        // Условие продления: лицензия неактивна или истекает в течение 7 дней
         boolean canRenew = license.getEndingDate() == null
                 || license.getEndingDate().isBefore(LocalDate.now().plusDays(8));
 
@@ -158,7 +152,6 @@ public class LicenseService {
         licenseRepository.save(license);
         saveHistory(license, user, "RENEWED", "License renewed");
 
-        // Для тикета берём первое устройство пользователя по этой лицензии
         Device device = deviceLicenseRepository.findAll().stream()
                 .filter(dl -> dl.getLicense().getId().equals(license.getId()))
                 .map(DeviceLicense::getDevice)
@@ -211,20 +204,7 @@ public class LicenseService {
                 device != null ? device.getId() : null,
                 license.isBlocked()
         );
-        String signature = signTicket(ticket);
+        String signature = signingService.sign(ticket);
         return new TicketResponse(ticket, signature);
-    }
-
-    private String signTicket(Ticket ticket) {
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            String json = mapper.writeValueAsString(ticket);
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(json.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to sign ticket", e);
-        }
     }
 }
