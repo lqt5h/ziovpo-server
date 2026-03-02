@@ -19,10 +19,10 @@ public class JwtTokenProvider {
     @Value("${jwt.secret:mySecretKeyForJWTSigningThatIsAtLeast32CharactersLong}")
     private String jwtSecret;
 
-    @Value("${jwt.access-token-expiration:900000}") // 15 минут
+    @Value("${jwt.access-token-expiration:900000}")
     private long accessTokenExpiration;
 
-    @Value("${jwt.refresh-token-expiration:604800000}") // 7 дней
+    @Value("${jwt.refresh-token-expiration:604800000}")
     private long refreshTokenExpiration;
 
     private SecretKey getSigningKey() {
@@ -51,7 +51,6 @@ public class JwtTokenProvider {
     public String generateRefreshToken(String username) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
-        // делаем каждый refresh-токен уникальным
         claims.put("jti", UUID.randomUUID().toString());
 
         Date now = new Date();
@@ -68,7 +67,6 @@ public class JwtTokenProvider {
 
     // ===== Валидация =====
 
-    /** Базовая проверка подписи и срока жизни */
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
@@ -101,6 +99,10 @@ public class JwtTokenProvider {
 
     public String getUsernameFromToken(String token) {
         return getAllClaimsFromToken(token).getSubject();
+    }
+
+    public long getAccessTokenExpiration() {
+        return accessTokenExpiration;
     }
 
     private Claims getAllClaimsFromToken(String token) {

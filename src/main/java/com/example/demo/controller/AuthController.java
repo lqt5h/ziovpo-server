@@ -2,9 +2,8 @@ package com.example.demo.controller;
 
 import com.example.demo.dto.TokenPairResponse;
 import com.example.demo.entity.User;
-import com.example.demo.service.TokenService;
+import com.example.demo.security.JwtTokenProvider;
 import com.example.demo.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,19 +13,20 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth")
 public class AuthController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private TokenService tokenService;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    public AuthController(UserService userService,
+                          JwtTokenProvider jwtTokenProvider,
+                          PasswordEncoder passwordEncoder) {
+        this.userService = userService;
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     /**
      * POST /auth/register
-     * Регистрирует нового пользователя (USER или TEACHER).
-     * ADMIN создавать через register нельзя.
      */
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody RegisterRequest request) {
@@ -56,16 +56,13 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
 
         } catch (IllegalArgumentException e) {
-            return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("Ошибка валидации пароля", e.getMessage()));
         } catch (RuntimeException e) {
-            return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST)
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("Ошибка регистрации", e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ErrorResponse("Ошибка сервера", e.getMessage()));
         }
     }
@@ -88,11 +85,13 @@ public class AuthController {
                         .body(new ErrorResponse("Ошибка входа", "Неверные учетные данные"));
             }
 
-            TokenService.TokenPair tokenPair = tokenService.createTokenPair(user);
+            String accessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), user.getEmail());
+            String refreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
+
             TokenPairResponse response = new TokenPairResponse(
-                    tokenPair.getAccessToken(),
-                    tokenPair.getRefreshToken(),
-                    tokenPair.getExpiresIn()
+                    accessToken,
+                    refreshToken,
+                    jwtTokenProvider.getAccessTokenExpiration()
             );
 
             return ResponseEntity.ok(response);
@@ -114,11 +113,26 @@ public class AuthController {
                         .body(new ErrorResponse("Ошибка", "Refresh token is required"));
             }
 
-            TokenService.TokenPair newTokenPair = tokenService.refreshTokens(request.getRefreshToken());
+            if (!jwtTokenProvider.validateRefreshToken(request.getRefreshToken())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("Ошибка", "Invalid or expired refresh token"));
+            }
+
+            String username = jwtTokenProvider.getUsernameFromToken(request.getRefreshToken());
+            User user = userService.findByUsername(username);
+
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ErrorResponse("Ошибка", "User not found"));
+            }
+
+            String newAccessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), user.getEmail());
+            String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getUsername());
+
             TokenPairResponse response = new TokenPairResponse(
-                    newTokenPair.getAccessToken(),
-                    newTokenPair.getRefreshToken(),
-                    newTokenPair.getExpiresIn()
+                    newAccessToken,
+                    newRefreshToken,
+                    jwtTokenProvider.getAccessTokenExpiration()
             );
 
             return ResponseEntity.ok(response);
@@ -138,17 +152,14 @@ public class AuthController {
         private String username;
         private String password;
         private String email;
-        private String role; // USER | TEACHER
+        private String role;
 
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
-
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
-
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
-
         public String getRole() { return role; }
         public void setRole(String role) { this.role = role; }
     }
@@ -159,7 +170,6 @@ public class AuthController {
 
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
-
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
     }
@@ -176,7 +186,6 @@ public class AuthController {
         private String message;
 
         public ErrorResponse() {}
-
         public ErrorResponse(String error, String message) {
             this.error = error;
             this.message = message;
@@ -184,7 +193,6 @@ public class AuthController {
 
         public String getError() { return error; }
         public void setError(String error) { this.error = error; }
-
         public String getMessage() { return message; }
         public void setMessage(String message) { this.message = message; }
     }

@@ -1,6 +1,7 @@
 package com.example.demo.model;
 
 import jakarta.persistence.*;
+import com.example.demo.entity.User;
 
 @Entity
 @Table(name = "device")
