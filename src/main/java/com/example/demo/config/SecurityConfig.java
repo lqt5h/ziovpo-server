@@ -13,6 +13,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -30,6 +31,7 @@ import java.io.IOException;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity // <- нужно для @PreAuthorize
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
@@ -67,49 +69,23 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-
                         // Public endpoints
                         .requestMatchers("/", "/hello", "/auth/register", "/auth/login", "/auth/refresh").permitAll()
-                        .requestMatchers("/h2-console/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/licenses/public-key").permitAll() // ← добавлено
 
-                        // ===== TEACHER endpoints =====
-                        .requestMatchers("/api/teacher/**").hasAnyRole("TEACHER", "ADMIN")
-
-                        // Quizzes
-                        .requestMatchers(HttpMethod.GET, "/api/quizzes/**").hasAnyRole("USER", "TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/quizzes").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/quizzes/**").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/quizzes/**").hasRole("ADMIN")
-
-                        // Questions
-                        .requestMatchers(HttpMethod.GET, "/api/questions/**").hasAnyRole("USER", "TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/questions/**").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/questions/**").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/questions/**").hasAnyRole("TEACHER", "ADMIN")
-
-                        // Answer options
-                        .requestMatchers(HttpMethod.GET, "/api/answer-options/**").hasAnyRole("USER", "TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/answer-options/**").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/answer-options/**").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/answer-options/**").hasAnyRole("TEACHER", "ADMIN")
-
-                        // Attempts
-                        .requestMatchers(HttpMethod.PUT, "/api/attempts/*").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/attempts/*/answers").hasAnyRole("USER", "TEACHER", "ADMIN")
-                        .requestMatchers("/api/attempts/**").hasAnyRole("USER", "TEACHER", "ADMIN")
+                        // License endpoints
+                        .requestMatchers(HttpMethod.POST, "/api/licenses").hasRole("ADMIN")
+                        .requestMatchers("/api/licenses/**").authenticated()
 
                         // Users
                         .requestMatchers(HttpMethod.POST, "/api/users/create").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/users/*/progress").hasAnyRole("USER", "TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/users/**").hasAnyRole("USER", "TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/users/**").hasAnyRole("USER", "TEACHER", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/users/**").hasAnyRole("USER", "TEACHER", "ADMIN")
+                        .requestMatchers("/api/users/**").authenticated()
 
                         // Everything else
                         .anyRequest().authenticated()
@@ -119,8 +95,6 @@ public class SecurityConfig {
 
         return http.build();
     }
-
-    // ===== Вложенный фильтр — отдельный файл не нужен =====
 
     public static class JwtAuthenticationFilter extends OncePerRequestFilter {
 
