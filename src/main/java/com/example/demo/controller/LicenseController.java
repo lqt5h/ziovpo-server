@@ -11,8 +11,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Base64;
-
 @RestController
 @RequestMapping("/api/licenses")
 public class LicenseController {
@@ -24,7 +22,7 @@ public class LicenseController {
                              SigningService signingService) {
         this.licenseService = licenseService;
         this.signingService = signingService;
-    }
+    } // ← был missing
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
@@ -56,7 +54,6 @@ public class LicenseController {
         return ResponseEntity.ok(licenseService.checkLicense(request, user.getId()));
     }
 
-    // Публичный ключ для проверки подписи на стороне клиента
     @GetMapping("/public-key")
     public ResponseEntity<String> getPublicKey() {
         return ResponseEntity.ok(signingService.getPublicKeyBase64());

@@ -36,3 +36,4 @@ build/
 .env
 .DS_Store
 src/main/resources/license-keystore-1BIB23392.p12
+.env

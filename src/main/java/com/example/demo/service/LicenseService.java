@@ -85,6 +85,10 @@ public class LicenseService {
         License license = licenseRepository.findByCode(request.getActivationKey())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "license not found"));
 
+        if (license.isBlocked()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "license is blocked");
+        }
+
         if (license.getUser() != null && !license.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "license owned by another user");
         }
@@ -134,6 +138,14 @@ public class LicenseService {
         License license = licenseRepository.findByCode(request.getActivationKey())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "license not found"));
 
+        if (license.getUser() == null || !license.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "license does not belong to this user");
+        }
+
+        if (license.isBlocked()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "license is blocked");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "user not found"));
 
@@ -152,10 +164,8 @@ public class LicenseService {
         licenseRepository.save(license);
         saveHistory(license, user, "RENEWED", "License renewed");
 
-        Device device = deviceLicenseRepository.findAll().stream()
-                .filter(dl -> dl.getLicense().getId().equals(license.getId()))
+        Device device = deviceLicenseRepository.findFirstByLicense(license)
                 .map(DeviceLicense::getDevice)
-                .findFirst()
                 .orElse(null);
 
         return buildTicketResponse(license, device);
