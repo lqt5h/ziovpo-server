@@ -19,6 +19,8 @@ public interface LicenseRepository extends JpaRepository<License, Long> {
           AND l.product.id = :productId
           AND l.blocked = false
           AND l.endingDate >= CURRENT_DATE
+        ORDER BY l.id DESC
+        LIMIT 1
     """)
     Optional<License> findActiveByDeviceUserAndProduct(
             @Param("device") Device device,
@@ -26,3 +28,4 @@ public interface LicenseRepository extends JpaRepository<License, Long> {
             @Param("productId") Long productId
     );
 }
+
