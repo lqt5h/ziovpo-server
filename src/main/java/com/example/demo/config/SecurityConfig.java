@@ -94,6 +94,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/signatures/*/history").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/signatures/*/audit").hasRole("ADMIN")
 
+                        // Binary signature endpoints (authenticated)
+                        .requestMatchers("/api/binary/signatures/**").authenticated()
+
                         // Users
                         .requestMatchers(HttpMethod.POST, "/api/users/create").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").authenticated()
