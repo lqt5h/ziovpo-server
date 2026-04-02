@@ -1,7 +1,8 @@
 package com.example.demo.model;
 
-import jakarta.persistence.*;
 import com.example.demo.entity.User;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.persistence.*;
 import java.time.LocalDate;
 
 @Entity
@@ -25,10 +26,14 @@ public class License {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
+    @JsonIgnoreProperties({"password", "authorities", "accountNonExpired",
+            "accountNonLocked", "credentialsNonExpired", "enabled"})
     private User owner;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
+    @JsonIgnoreProperties({"password", "authorities", "accountNonExpired",
+            "accountNonLocked", "credentialsNonExpired", "enabled"})
     private User user;
 
     @Column(name = "first_activation_date")

@@ -83,6 +83,17 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/licenses").hasRole("ADMIN")
                         .requestMatchers("/api/licenses/**").authenticated()
 
+                        // Signature endpoints — read (all authenticated)
+                        .requestMatchers(HttpMethod.GET, "/api/signatures").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/signatures/diff").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/signatures/by-ids").authenticated()
+                        // Signature endpoints — write (ADMIN only)
+                        .requestMatchers(HttpMethod.POST, "/api/signatures").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/signatures/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/signatures/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/signatures/*/history").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/signatures/*/audit").hasRole("ADMIN")
+
                         // Users
                         .requestMatchers(HttpMethod.POST, "/api/users/create").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").authenticated()
