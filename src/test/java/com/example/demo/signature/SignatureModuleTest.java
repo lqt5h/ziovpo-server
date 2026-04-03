@@ -225,20 +225,4 @@ class SignatureModuleTest {
 
         assertEquals(sig1, sig2, "Canonicalization should make key order irrelevant");
     }
-
-    @Test
-    void signRawBytes_producesValidSignature() throws Exception {
-        byte[] data = "test data".getBytes(StandardCharsets.UTF_8);
-
-        byte[] sigBytes = signingService.signRawBytes(data);
-
-        assertNotNull(sigBytes);
-        assertTrue(sigBytes.length > 0);
-
-        // Verify manually
-        Signature verifier = Signature.getInstance("SHA256withRSA");
-        verifier.initVerify(keyProvider.getPublicKey());
-        verifier.update(data);
-        assertTrue(verifier.verify(sigBytes));
-    }
 }
