@@ -3,6 +3,7 @@ package com.example.demo.signature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.stereotype.Component;
 
@@ -60,9 +61,11 @@ public class JsonCanonicalizationService {
             return objectMapper.valueToTree(sorted);
         }
         if (node.isArray()) {
+            ArrayNode arrayNode = objectMapper.createArrayNode();
             for (int i = 0; i < node.size(); i++) {
-                sortObjectKeys(node.get(i));
+                arrayNode.add(sortObjectKeys(node.get(i)));
             }
+            return arrayNode;
         }
         return node;
     }
