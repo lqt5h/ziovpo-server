@@ -97,6 +97,9 @@ public class SecurityConfig {
                         // Binary signature endpoints (authenticated)
                         .requestMatchers("/api/binary/signatures/**").authenticated()
 
+                        // File-based signature endpoints (ADMIN only)
+                        .requestMatchers("/api/files/signatures/**").hasRole("ADMIN")
+
                         // Users
                         .requestMatchers(HttpMethod.POST, "/api/users/create").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").authenticated()
