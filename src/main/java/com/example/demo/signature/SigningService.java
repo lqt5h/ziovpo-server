@@ -64,21 +64,6 @@ public class SigningService {
         }
     }
 
-    /**
-     * Подписывает сырые байты (для бинарного манифеста).
-     * Возвращает сырые байты подписи (без Base64).
-     */
-    public byte[] signRawBytes(byte[] data) {
-        try {
-            Signature signer = Signature.getInstance(algorithm);
-            signer.initSign(keyProvider.getPrivateKey());
-            signer.update(data);
-            return signer.sign();
-        } catch (Exception e) {
-            throw new RuntimeException("Signing raw bytes failed: " + e.getMessage(), e);
-        }
-    }
-
     public String getPublicKeyBase64() {
         return Base64.getEncoder().encodeToString(
                 keyProvider.getPublicKey().getEncoded()
