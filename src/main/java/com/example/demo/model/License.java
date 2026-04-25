@@ -4,6 +4,8 @@ import com.example.demo.entity.User;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDate;
+import com.example.demo.model.Product;
+import com.example.demo.model.LicenseType;
 
 @Entity
 @Table(name = "license")

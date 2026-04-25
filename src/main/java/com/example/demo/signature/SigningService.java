@@ -65,8 +65,7 @@ public class SigningService {
     }
 
     /**
-     * Подписывает сырые байты (для бинарного манифеста).
-     * Возвращает сырые байты подписи (без Base64).
+     * Подписывает сырые байты (для бинарных данных, без канонизации)
      */
     public byte[] signRawBytes(byte[] data) {
         try {
@@ -75,7 +74,7 @@ public class SigningService {
             signer.update(data);
             return signer.sign();
         } catch (Exception e) {
-            throw new RuntimeException("Signing raw bytes failed: " + e.getMessage(), e);
+            throw new RuntimeException("Raw bytes signing failed: " + e.getMessage(), e);
         }
     }
 
