@@ -14,8 +14,9 @@ import java.util.*;
 @Service
 public class BinaryExportService {
 
-    private static final String MANIFEST_MAGIC = "MF-M";
-    private static final String DATA_MAGIC = "DB-M";
+    private static final String MANIFEST_MAGIC = "MF-Mareychenko";
+    private static final String DATA_MAGIC = "DB-Mareychenko";
+    private static final int MAGIC_LENGTH = 14;
     private static final int FORMAT_VERSION = 1;
 
     private static final int EXPORT_FULL = 0;
@@ -106,7 +107,7 @@ public class BinaryExportService {
     private byte[] buildDataBin(List<byte[]> recordBytes) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         // Заголовок: magic(4) + version(2) + recordCount(4)
-        BinaryWriteUtils.writeAscii(out, DATA_MAGIC, 4);
+        BinaryWriteUtils.writeAscii(out, DATA_MAGIC, MAGIC_LENGTH);
         BinaryWriteUtils.writeU16BE(out, FORMAT_VERSION);
         BinaryWriteUtils.writeU32BE(out, recordBytes.size());
         // Записи
@@ -134,7 +135,7 @@ public class BinaryExportService {
                                      long sinceEpochMillis, int recordCount,
                                      byte[] dataSha256) {
         // magic(4) + version(2) + exportType(1) + generatedAt(8) + since(8) + count(4) + sha256(32) = 59 bytes
-        BinaryWriteUtils.writeAscii(out, MANIFEST_MAGIC, 4);
+        BinaryWriteUtils.writeAscii(out, MANIFEST_MAGIC, MAGIC_LENGTH);
         BinaryWriteUtils.writeU16BE(out, FORMAT_VERSION);
         BinaryWriteUtils.writeU8(out, exportType);
         BinaryWriteUtils.writeI64BE(out, System.currentTimeMillis());
