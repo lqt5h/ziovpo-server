@@ -28,7 +28,7 @@ class SignatureModuleTest {
         keyProvider = new SignatureKeyProvider(props);
         keyProvider.init();
 
-        canonicalizationService = new JsonCanonicalizationService();
+        canonicalizationService = new JsonCanonicalizationService(new com.fasterxml.jackson.databind.ObjectMapper());
         signingService = new SigningService(keyProvider, canonicalizationService);
 
         // Set algorithm field via reflection (normally injected by @Value)
