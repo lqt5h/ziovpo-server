@@ -3,9 +3,7 @@ package com.example.demo.signature;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -14,21 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Канонизация JSON по RFC 8785 (JCS — JSON Canonicalization Scheme).
- *
- * Правила:
- *  - ключи объектов сортируются лексикографически по UTF-16 code units
- *    (включая ключи объектов внутри массивов);
- *  - массивы сохраняют исходный порядок элементов, но элементы
- *    канонизируются рекурсивно;
- *  - строки экранируются минимальным набором (RFC 8785 §3.2.2.2):
- *    только ", \ и управляющие символы U+0000–U+001F; всё прочее —
- *    как есть в UTF-8 (одиночные суррогаты запрещены — IllegalStateException);
- *  - числа сериализуются по ECMA-262 §6.1.6.1.20 (RFC 8785 §3.2.2.3)
- *    с проверкой I-JSON safe range для целых (±2^53 − 1);
- *  - форматирующие пробелы отсутствуют.
- */
 @Component
 public class JsonCanonicalizationService {
 
@@ -37,16 +20,10 @@ public class JsonCanonicalizationService {
 
     private final ObjectMapper objectMapper;
 
-    public JsonCanonicalizationService() {
-        this.objectMapper = new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    public JsonCanonicalizationService(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
     }
 
-    /**
-     * Принимает любой объект (или JSON-строку), возвращает UTF-8 байты
-     * канонического JSON в соответствии с RFC 8785.
-     */
     public byte[] canonicalize(Object payload) {
         return canonizeJson(payload).getBytes(StandardCharsets.UTF_8);
     }

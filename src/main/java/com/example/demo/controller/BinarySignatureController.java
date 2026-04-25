@@ -2,14 +2,13 @@ package com.example.demo.controller;
 
 import com.example.demo.dto.SignatureIdsRequest;
 import com.example.demo.service.BinaryExportService;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.*;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -25,13 +24,13 @@ public class BinarySignatureController {
     }
 
     @GetMapping("/full")
-    public ResponseEntity<byte[]> getFull() {
+    public ResponseEntity<MultiValueMap<String, Object>> getFull() {
         BinaryExportService.BinaryExportResult result = binaryExportService.exportFull();
         return buildMultipartResponse(result);
     }
 
     @GetMapping("/increment")
-    public ResponseEntity<byte[]> getIncrement(@RequestParam("since") String since) {
+    public ResponseEntity<MultiValueMap<String, Object>> getIncrement(@RequestParam("since") String since) {
         Instant sinceInstant;
         try {
             sinceInstant = Instant.parse(since);
@@ -44,36 +43,36 @@ public class BinarySignatureController {
     }
 
     @PostMapping("/by-ids")
-    public ResponseEntity<byte[]> getByIds(@RequestBody SignatureIdsRequest request) {
+    public ResponseEntity<MultiValueMap<String, Object>> getByIds(@RequestBody SignatureIdsRequest request) {
         List<java.util.UUID> ids = (request.getIds() != null) ? request.getIds() : List.of();
         BinaryExportService.BinaryExportResult result = binaryExportService.exportByIds(ids);
         return buildMultipartResponse(result);
     }
 
-    private ResponseEntity<byte[]> buildMultipartResponse(BinaryExportService.BinaryExportResult result) {
-        String boundary = "BinaryExport" + System.currentTimeMillis();
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        writePart(out, boundary, "manifest.bin", result.manifest());
-        writePart(out, boundary, "data.bin", result.data());
-
-        String closing = "--" + boundary + "--\r\n";
-        out.writeBytes(closing.getBytes(StandardCharsets.UTF_8));
+    private ResponseEntity<MultiValueMap<String, Object>> buildMultipartResponse(
+            BinaryExportService.BinaryExportResult result) {
+        LinkedMultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("manifest", createPart("manifest.bin", result.manifest()));
+        body.add("data", createPart("data.bin", result.data()));
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set(HttpHeaders.CONTENT_TYPE, "multipart/mixed; boundary=" + boundary);
-        return new ResponseEntity<>(out.toByteArray(), headers, HttpStatus.OK);
+        headers.setContentType(MediaType.parseMediaType("multipart/mixed"));
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(body);
     }
 
-    private void writePart(ByteArrayOutputStream out, String boundary,
-                           String filename, byte[] content) {
-        String partHeader = "--" + boundary + "\r\n"
-                + "Content-Disposition: attachment; filename=\"" + filename + "\"\r\n"
-                + "Content-Type: application/octet-stream\r\n"
-                + "Content-Length: " + content.length + "\r\n"
-                + "\r\n";
-        out.writeBytes(partHeader.getBytes(StandardCharsets.UTF_8));
-        out.writeBytes(content);
-        out.writeBytes("\r\n".getBytes(StandardCharsets.UTF_8));
+    private HttpEntity<ByteArrayResource> createPart(String filename, byte[] content) {
+        HttpHeaders partHeaders = new HttpHeaders();
+        partHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        partHeaders.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+
+        ByteArrayResource resource = new ByteArrayResource(content) {
+            @Override
+            public String getFilename() {
+                return filename;
+            }
+        };
+        return new HttpEntity<>(resource, partHeaders);
     }
 }
